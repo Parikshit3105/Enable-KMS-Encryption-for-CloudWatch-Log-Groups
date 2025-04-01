@@ -4,31 +4,37 @@
 This AWS Lambda function enables or disables KMS encryption for Amazon CloudWatch log groups in a given AWS region. Users can specify a KMS key, enable or disable encryption, and optionally apply the change to a specific log group.
 
 ## Features
-- Enables KMS encryption for all or a specific CloudWatch log group.
-- Allows disabling KMS encryption.
-- Uses AWS Lambda and Boto3 for automation.
-- Supports dynamic KMS key definition via payload.
+- Enables KMS encryption for all or a specific CloudWatch log group
+- Allows disabling KMS encryption
+- Uses AWS Lambda and Boto3 for automation
+- Supports dynamic KMS key definition via payload
 
 ## Prerequisites
-- AWS account with appropriate IAM permissions.
-- An existing KMS Key (for enabling encryption).
-- AWS Lambda execution role with required permissions.
+- AWS account with appropriate IAM permissions
+- An existing KMS Key (for enabling encryption)
+- AWS Lambda execution role with required permissions
 
-### Deploy Lambda Function
-1. Create a new AWS Lambda function.
-2. Upload the `lambda_function.py` script.
-   ```sh
+## Deployment Guide
+
+### 1. Create Lambda Function
+1. Create a new AWS Lambda function
+2. Copy the code below into the function
+3. Set the Lambda timeout to at least 30 seconds
+
+### 2. Lambda Function Code
+
+```python
 import json
 import boto3
 
 def lambda_handler(event, context):
     client = boto3.client('logs')
-    
+
     # Extract parameters from the event payload
     action = event.get('action', 'enable')  # 'enable' or 'disable'
     kms_key_arn = event.get('kms_key_arn')  # KMS Key ARN (required for enabling)
     log_group_name = event.get('log_group_name')  # Optional: Specific log group
-    
+
     try:
         if log_group_name:
             # Apply to a specific log group
@@ -59,13 +65,9 @@ def update_log_group_encryption(client, log_group_name, action, kms_key_arn):
         print(f"Disabled KMS encryption for {log_group_name}")
     else:
         raise ValueError("Invalid action or missing KMS Key for enabling encryption.")
-
 ```
-4. Assign the IAM role with the necessary permissions.
-5. Set the Lambda timeout to at least **30 seconds**.
-6. Deploy and test using the sample event payloads below.
 
-## IAM Policy for Lambda
+### 3. IAM Policy
 Attach the following IAM policy to your Lambda execution role:
 
 ```json
@@ -104,7 +106,9 @@ Attach the following IAM policy to your Lambda execution role:
     ]
 }
 ```
-## Usage
+
+## Usage Examples
+
 ### Enable KMS for all log groups
 ```json
 {
@@ -136,7 +140,3 @@ Attach the following IAM policy to your Lambda execution role:
     "log_group_name": "/aws/lambda/my-log-group"
 }
 ```
-
-## License
-This project is licensed under the MIT License.
-
