@@ -14,6 +14,57 @@ This AWS Lambda function enables or disables KMS encryption for Amazon CloudWatc
 - An existing KMS Key (for enabling encryption).
 - AWS Lambda execution role with required permissions.
 
+### Deploy Lambda Function
+1. Create a new AWS Lambda function.
+2. Upload the `lambda_function.py` script.
+   ```sh
+import json
+import boto3
+
+def lambda_handler(event, context):
+    client = boto3.client('logs')
+    
+    # Extract parameters from the event payload
+    action = event.get('action', 'enable')  # 'enable' or 'disable'
+    kms_key_arn = event.get('kms_key_arn')  # KMS Key ARN (required for enabling)
+    log_group_name = event.get('log_group_name')  # Optional: Specific log group
+    
+    try:
+        if log_group_name:
+            # Apply to a specific log group
+            update_log_group_encryption(client, log_group_name, action, kms_key_arn)
+        else:
+            # Apply to all log groups
+            paginator = client.get_paginator('describe_log_groups')
+            for page in paginator.paginate():
+                for log_group in page.get('logGroups', []):
+                    update_log_group_encryption(client, log_group['logGroupName'], action, kms_key_arn)
+                    
+        return {
+            'statusCode': 200,
+            'body': json.dumps(f"KMS encryption {action}d successfully.")
+        }
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps(str(e))
+        }
+
+def update_log_group_encryption(client, log_group_name, action, kms_key_arn):
+    if action == 'enable' and kms_key_arn:
+        client.associate_kms_key(logGroupName=log_group_name, kmsKeyId=kms_key_arn)
+        print(f"Enabled KMS encryption for {log_group_name} with key {kms_key_arn}")
+    elif action == 'disable':
+        client.disassociate_kms_key(logGroupName=log_group_name)
+        print(f"Disabled KMS encryption for {log_group_name}")
+    else:
+        raise ValueError("Invalid action or missing KMS Key for enabling encryption.")
+
+```
+4. Assign the IAM role with the necessary permissions.
+5. Set the Lambda timeout to at least **30 seconds**.
+6. Deploy and test using the sample event payloads below.
+
 ## IAM Policy for Lambda
 Attach the following IAM policy to your Lambda execution role:
 
@@ -53,29 +104,6 @@ Attach the following IAM policy to your Lambda execution role:
     ]
 }
 ```
-
-## Deployment Steps
-### 1. Create a GitHub Repository
-1. Log in to GitHub and create a new repository.
-2. Name the repository (e.g., `cloudwatch-kms-encryption`).
-3. Initialize it with a `README.md` (or add later).
-
-### 2. Clone and Upload Code
-```sh
-git clone https://github.com/YOUR_USERNAME/cloudwatch-kms-encryption.git
-cd cloudwatch-kms-encryption
-git add .
-git commit -m "Initial commit"
-git push origin main
-```
-
-### 3. Deploy Lambda Function
-1. Create a new AWS Lambda function.
-2. Upload the `lambda_function.py` script.
-3. Assign the IAM role with the necessary permissions.
-4. Set the Lambda timeout to at least **30 seconds**.
-5. Deploy and test using the sample event payloads below.
-
 ## Usage
 ### Enable KMS for all log groups
 ```json
